@@ -1,0 +1,43 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+extra_datadisk = "data_disk.vmdk"
+extra_datadisk_channel = "2"
+
+extra_datadisk_swap = "swap_data_disk.vmdk"
+extra_datadisk_swap_channel = "3"
+
+# size MBytes 
+extra_datadisk_size = 5120
+extra_datadisk_swap_size = 512
+
+Vagrant.configure("2") do |config|
+
+  config.vm.define :kihost do |kihost|
+    kihost.vm.box_check_update = false
+	kihost.vm.box = "ubuntu/xenial64"
+    kihost.vm.network :private_network, ip: "10.0.0.12"
+    kihost.vm.hostname = "kihost"
+	
+	kihost.vm.synced_folder "..", "/root"
+	
+    config.vm.provider "virtualbox" do |vb|
+       vb.memory = "512"
+	   vb.name = "kihost"
+	   
+	   # LVM for /var/log  /var/lib  /home
+	   unless File.exist?(extra_datadisk)
+          vb.customize [ "createmedium", "disk", "--filename", extra_datadisk, "--format", "vmdk", "--size", extra_datadisk_size ]
+       end
+       vb.customize [ "storageattach", :id, "--storagectl", "SCSI", "--port", extra_datadisk_channel, "--device", "0", "--type", "hdd", "--medium", extra_datadisk]
+	   
+	   # swap 
+   	   unless File.exist?(extra_datadisk_swap)
+          vb.customize [ "createmedium", "disk", "--filename", extra_datadisk_swap, "--format", "vmdk", "--size", extra_datadisk_swap_size ]
+       end
+       vb.customize [ "storageattach", :id, "--storagectl", "SCSI", "--port", extra_datadisk_swap_channel, "--device", "0", "--type", "hdd", "--medium", extra_datadisk_swap]
+    end	
+	
+	kihost.vm.provision :shell, path: "vagrant_bootstrap.sh"
+  end
+end
